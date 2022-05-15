@@ -1,0 +1,12 @@
+name: yad2
+dependencies:
+  - python=3.7
+  - vim
+  - ipython
+  - ipykernel
+  - boto3
+  - scrapy
+  - tabulate
+  - black
+  - beautifulsoup4
+  - dominate
