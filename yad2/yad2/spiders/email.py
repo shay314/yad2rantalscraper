@@ -1,11 +1,22 @@
-import smtplib, ssl
+import json
+import smtplib
+import ssl
+
+from typing import Tuple
+
+CONFIG_PATH = "/home/shay/.config/gmail.pass"
+
 
 class Mail:
     def __init__(self):
         self.port = 465
         self.smtp_server_domain_name = "smtp.gmail.com"
-        self.sender_mail = 'lfirst960@gmail.com'
-        self.password = '1234a4321'
+        self.sender_mail, self.password = self.load_config()
+
+    def load_config(self) -> Tuple[str, str]:
+        with open(CONFIG_PATH) as f:
+            config = json.load(f)
+        return config["email"], config["password"]
 
     def send(self, emails, subject, content):
         ssl_context = ssl.create_default_context()
