@@ -4,8 +4,10 @@ import re
 import time
 import copy
 from typing import Dict, List
+import json
+import os
+import logging
 
-import boto3
 import dominate
 import scrapy
 from bs4 import BeautifulSoup
@@ -13,17 +15,9 @@ from tabulate import tabulate
 
 from yad2.spiders.email import Mail
 
-URLS_TO_SCAPRE_FROM = [
-    "https://www.yad2.co.il/realestate/rent?topArea=2&area=8&city=1200&rooms=3-5&price=-1-6500&EnterDate=1657832400--1&comment=%D7%90%D7%91%D7%A0%D7%99%20%D7%97%D7%9F",
-    "https://www.yad2.co.il/realestate/rent?topArea=2&area=8&city=1200&rooms=3-5&price=-1-6500&EnterDate=1657832400--1&comment=%D7%94%D7%9E%D7%92%D7%99%D7%A0%D7%99%D7%9D",
-    "https://www.yad2.co.il/realestate/rent?topArea=2&area=8&city=1200&rooms=3-5&price=-1-6500&EnterDate=1657832400--1&comment=%D7%94%D7%9B%D7%A8%D7%9E%D7%99%D7%9D",
-]
 TABLE_HEADERS = ["Index", "Title", "Rooms", "Floor", "Price"]
 
-import logging
-
 logging.basicConfig(format="%(asctime)s - %(message)s", level=logging.INFO)
-logging.info("Admin logged in")
 
 
 class Yad2Item(scrapy.Item):
@@ -37,7 +31,6 @@ class Yad2Spider(scrapy.Spider):
     name = "yad2_spider"
     allowed_domains = ["yad2.co.il"]
 
-    start_url = URLS_TO_SCAPRE_FROM[0]
     HEADERS = {
         "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) "
         "Chrome/72.0.3626.119 Safari/537.36"
@@ -52,10 +45,27 @@ class Yad2Spider(scrapy.Spider):
         self.prev_results = set([])
         self.curren_results = []
         self.scrape_index = 0
+        self._load_config()
+    
+    def _load_config(self):
+        """load the scrape configuration - mainly the urls we want to scrape from and recipients"""
+        if not os.path.exists(self.config_path):
+            msg = f"config path {self.config_path} does not exists"
+            raise Exception(msg)
+
+        with open(self.config_path) as config_file:
+            config = json.load(config_file)
+            self.scrape_urls = config.get('scrape_urls', [])
+            if len(self.scrape_urls) == 0:
+                raise Exception("you should supply at least single url in the config file")
+
+            self.recipients = config.get('recipients', [])
+            if len(self.recipients) == 0:
+                raise Exception("you should supply at least single recipient in the config file")
 
     def start_requests(self):
         yield scrapy.Request(
-            self.start_url, callback=self.parse_search_url, headers=self.HEADERS
+            self.scrape_urls[self.scrape_index], callback=self.parse_search_url, headers=self.HEADERS
         )
 
     def parse_search_url(self, response):
@@ -74,14 +84,14 @@ class Yad2Spider(scrapy.Spider):
             logging.warning("did not found any housing")
 
         # examine results
-        done_scraping_round = self.scrape_index == len(URLS_TO_SCAPRE_FROM) - 1
+        done_scraping_round = self.scrape_index == len(self.scrape_urls) - 1
         if done_scraping_round:
             self.examine_and_notify()
 
         # rescrape
-        self.scrape_index = (self.scrape_index + 1) % len(URLS_TO_SCAPRE_FROM)
+        self.scrape_index = (self.scrape_index + 1) % len(self.scrape_urls)
         logging.info("new url index %d", self.scrape_index)
-        next_url = URLS_TO_SCAPRE_FROM[self.scrape_index]
+        next_url = self.scrape_urls[self.scrape_index]
         yield scrapy.Request(
             next_url,
             callback=self.parse_search_url,
@@ -127,7 +137,10 @@ class Yad2Spider(scrapy.Spider):
             .text.strip()
             .split()[0]
         )
-        item["price"] = int(price.replace(",", ""))
+        try:
+            item["price"] = int(price.replace(",", ""))
+        except ValueError:
+            item["price"] = -1
 
         return item
 
@@ -136,7 +149,7 @@ class Yad2Spider(scrapy.Spider):
         display(results)
         # content = convert_to_html(results)
         msg = f"connect to yad 2!"
-        self.mail.send(["shay.mrglit@gmail.com"], "Found change in housing!", msg)
+        self.mail.send(self.recipients, "Found change in housing!", msg)
 
     def convert_to_html(self, results) -> str:
         doc = dominate.document(title="Change in rant housing")
