@@ -4,7 +4,7 @@ import ssl
 
 from typing import Tuple
 
-CONFIG_PATH = "/home/shay/.config/gmail.pass"
+CONFIG_PATH = "~/.config/gmail.pass"
 
 
 class Mail:
@@ -14,7 +14,7 @@ class Mail:
         self.sender_mail, self.password = self.load_config()
 
     def load_config(self) -> Tuple[str, str]:
-        with open(CONFIG_PATH) as f:
+        with open(os.path.expanduser(CONFIG_PATH)) as f:
             config = json.load(f)
         return config["email"], config["password"]
 

@@ -19,8 +19,14 @@ The config should be a json file which contains the pages you want to scrape and
 }
 ```
 
+# Notifications
+We're currently using gmail, but it should be blocked around 30/05/2022 - hence we need to find workaround.</br>
+Anyway, the username and password should be located under:</br>
+```~/.config/gmail.pass```
+
 # Development
 Simply create with conda:
 ```
 conda env create --file yad2/environment.yml
 ````
+
