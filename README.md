@@ -27,6 +27,6 @@ Anyway, the username and password should be located under:</br>
 # Development
 Simply create with conda:
 ```
-conda env create --file yad2/environment.yml
+conda env create --file environment.yml
 ````
 
