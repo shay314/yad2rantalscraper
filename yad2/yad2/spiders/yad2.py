@@ -176,7 +176,7 @@ class Yad2Spider(scrapy.Spider):
             create_table(table_headers=TABLE_HEADERS, data=table)
             dominate.tags.a(
                 "see the change in this link",
-                href=URLS_TO_SCAPRE_FROM[self.scrape_index],
+                href=self.scrape_urls[self.scrape_index],
             )
 
         return str(doc)
